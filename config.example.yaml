@@ -1,29 +1,30 @@
 
-# Our log file
+# The log file.
 log_file: ihb.log
 # debug or info
 log_level: debug
 
-# Default host is the default ip address of the currnet host
+# Default host is the default ip address of the curreet host
 # If you have multiple interfaces you can set which one
 # Otherwise don't define it.
 host: 
 # Default port is 8088 for the local REST interface
 #port: 8088
 
+#
+# Settings for your ISY
+#
 isy:
   host: your_isy_host_or_ip_address
-  port: your_isy_port_usually_80
+  port: 80
   user: your_isy_user_name
-  password: diabl099
-  # Set to true or false for logging isy activity
-  log_enable: true
+  password: your_isy_password
+  log_enable: false
 
-# HABridge info
-# TODO: Should make the default the current host.
-# port must be 80 for Google Home!
-#      can be anything for Alexa
+#
+# Settings for your ha-bridge
+# Default host is the current host, and port is 80
+#
 bridge:
-  host: your_ha_bridge_host
-  port: your_ha_bridge_port
-
+  host: 
+  port: 

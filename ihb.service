@@ -1,0 +1,14 @@
+[Unit]
+Description=ISY Helper HA Bridge
+Documentation=https://github.com/jimboca/ISYHelperHABridge/blob/master/README.md
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/development/ISYHelperHABridge
+ExecStart=/home/pi/development/ISYHelperHABridge/ihb.py
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target

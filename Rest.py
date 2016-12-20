@@ -31,9 +31,11 @@ class Rest(object):
         print info
         self.app.debug = debug
 
-    def run(self):
+    def run(self,bridge,isy):
         info = "Starting REST interface %s:%s..." % (self.host,self.port)
         self.app.run(host=self.host, port=self.port)
+        self.bridge = bridge
+        self.isy    = isy
 
     def get_ip(self):
         return request.remote_addr
@@ -41,7 +43,9 @@ class Rest(object):
 @app.route("/")
 def top():
     app.logger.info("REST:top")
-    return "ISYHelper HABridge: %s<br>" % (CONFIG['version'])
+    info = "ISYHelper HABridge: %s<br>Requestor: %s<br>" % (CONFIG['version'],request.remote_addr);
+    
+
     #return "ISYHelper Web Interface version %s<br>Requestor: %s<br>%s" % (CONFIG['isyhelper_version'], request.remote_addr, isyhelperRESTObj.helpers.get_index())
 
 #

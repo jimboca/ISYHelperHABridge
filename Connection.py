@@ -66,8 +66,8 @@ class Connection(object):
         except requests.ConnectionError as err:
             self._logger.error('ConnectionError: %s', url)
             return (None,"")
-        self._logger.info("request:connect:success: %s", response.url)
-        self._logger.debug("request:connect:success: %s", response.text)
+        self._logger.info("request:connect:success: url=%s", response.url)
+        self._logger.debug("request:connect:success: text=%s", response.text)
         if response.status_code == 200 or response.status_code == 201:
             return (True,response.text)
         elif response.status_code == 400:
