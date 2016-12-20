@@ -5,7 +5,7 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/home/pi/ihb/habridge
-ExecStart=/usr/bin/java -jar ha-bridge-3.5.1.jar
+ExecStart=/usr/bin/java -jar ha-bridge.jar
 Restart=always
 User=root
 
