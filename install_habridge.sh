@@ -7,7 +7,7 @@ fi
 
 sudo cp habridge.service /lib/systemd/system/
 
-cd /home/pi/hab
+cd /home/pi/ihb
 
 if [ ! -d habridge ]; then
     mkdir habridge
