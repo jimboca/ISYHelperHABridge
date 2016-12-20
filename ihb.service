@@ -5,7 +5,7 @@ After=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/pi/ihb
+WorkingDirectory=/home/pi/ihb/ISYHelperHABridge
 ExecStart=/home/pi/ihb/ISYHelperHABridge/ihb.py
 Restart=always
 User=root
