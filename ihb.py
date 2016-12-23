@@ -13,6 +13,7 @@ import json
 import yaml
 import socket
 import os
+from operator import itemgetter, attrgetter, methodcaller
 from Connection import Connection
 from flask import Flask
 from flask import request
@@ -79,9 +80,9 @@ def load_config ():
         error = True
     if 'bridge' in config:
         # Default bridge is this host.
-        if not 'host' in config['bridge'] or config['bridge']['host'] == "":
+        if not 'host' in config['bridge'] or config['bridge']['host'] == "" or config['bridge']['host'] == None:
             config['bridge']['host'] = config['this_host']['host']
-        if not 'port' in config['bridge'] or config['bridge']['port'] == "":
+        if not 'port' in config['bridge'] or config['bridge']['port'] == "" or config['bridge']['port'] == None:
             config['bridge']['port'] = 80
 
     if error:
@@ -140,24 +141,23 @@ class isy():
             log = self.logger
         else:
             log=None
-        info = "ihab:isy: Connecting %s:%s log=%s" % (self.host,self.port,log)
+        info = "isy: Connecting %s:%s log=%s" % (self.host,self.port,log)
         print(info)
         logger.info(info)
         isy = PyISY.ISY(self.host, self.port, self.user, self.password, False, "1.1", log=log)
-        info = "ish: connected: %s" % (str(isy.connected))
+        info = "isy: connected: %s" % (str(isy.connected))
         print(info)
         logger.info(info)
         isy.auto_update = True
         self.devices = []
 
-        info = "ihab:isy: Checking for Spoken objects."
+        info = "isy: Checking for Spoken objects."
         print(info)
         logger.info(info)
-        idevs  = []
         for child in isy.nodes.allLowerNodes:
             #print child
             if child[0] is 'node' or child[0] is 'group':
-                logger.info(child)
+                #logger.info(child)
                 mnode = isy.nodes[child[2]]
                 spoken = mnode.spoken
                 if spoken is not None:
@@ -165,7 +165,7 @@ class isy():
                     # TODO: Or should that be part of notes?
                     if spoken == '1':
                         spoken = mnode.name
-                    logger.info("name=%s spoken=%s" % (mnode.name,str(spoken)))
+                    logger.info("isy: name=%s spoken=%s" % (mnode.name,str(spoken)))
                     cnode = False
                     if child[0] is 'node':
                         # Is it a controller of a scene?
@@ -174,14 +174,21 @@ class isy():
                             #mnode = cgroup
                             # TODO: We don't need to do this anymore, since we can put Spoken on Scenes!
                             cnode = isy.nodes[cgroup[0]]
-                            logger.info("%s is a scene controller of %s='%s'" % (str(cgroup[0]),str(cnode),cnode.name))
+                            logger.info("isy: %s is a scene controller of %s='%s'" % (str(cgroup[0]),str(cnode),cnode.name))
                     else:
                         # TODO: This shoud be all scene responders that are dimmable?
                         if len(mnode.controllers) > 0:
                             cnode = isy.nodes[mnode.controllers[0]]
-                    self.devices.append(isy_node_handler(self,spoken,mnode,cnode))
-    # TODO: If idevs size is zero, no spoken devices in ISY, or ERROR in log.
+                    if self.has_device_by_name(spoken) is False:
+                        self.devices.append(isy_node_handler(self,spoken,mnode,cnode))
+                    else:
+                        logger.error("isy: Duplicate Ignored: '%s' for mnode='%s' cnode=%s" % (spoken,mnode,cnode))
         
+    def has_device_by_name(self,name):
+        for dev in self.devices:
+            if dev.name == name:
+                return dev
+        return False
 #
 # These push device changes to the ha-bridge
 #
@@ -189,12 +196,13 @@ class isy_node_handler():
 
     def __init__(self, parent, name, main, scene):
         self.parent  = parent
-        self.name    = name
+        # Force as string to make habridge happy?
+        self.name    = str(name)
         self.main    = main
         self.scene   = scene
-        self.map_id = "isy:%s" % (self.main._id)
+        self.map_id  = str("isy:%s" % (self.main._id))
         main.status.subscribe('changed', self.get_all_changed)
-        self.parent.logger.info('ihab:isy.__init__:  name=%s node=%s scene=%s' % (self.name, self.main, self.scene))
+        self.parent.logger.info('isy:node:.__init__:  name=%s node=%s scene=%s' % (self.name, self.main, self.scene))
         # ISY URL's
         self.isy_url = "%s/%s/cmd" % (self.parent.isy_url,quote(self.main._id))
         self.isy_on  = "%s/DON" % (self.isy_url)
@@ -225,47 +233,48 @@ class isy_node_handler():
         self.bid = id
         
     def get_all_changed(self,e):
-        self.parent.logger.info('ihab:isy.get_all_changed:  %s e=%s' % (self.name, str(e)))
+        self.parent.logger.info('isy:get_all_changed:  %s e=%s' % (self.name, str(e)))
         self.get_all()
 
     def get_all(self):
-        self.parent.logger.info('ihab:isy.get_all:  %s status=%s' % (self.name, str(self.main.status)))
+        self.parent.logger.info('isy:get_all:  %s status=%s' % (self.name, str(self.main.status)))
         # node.status will be 0-255
         self.bri = self.main.status
         if int(self.main.status) == 0:
             self.on  = "false"
         else:
             self.on  = "true"
-        self.parent.logger.info('ihab:isy.get_all:  %s on=%s bri=%s' % (self.name, self.on, str(self.bri)))
+        self.parent.logger.info('isy:get_all:  %s on=%s bri=%s' % (self.name, self.on, str(self.bri)))
         self.parent.bridge.set_device_state(self.bid,self.on,str(self.bri))
                 
     def set_on(self):
-        self.parent.logger.info('pyhue:isy_handler.set_on: %s node.on()' % (self.name))
+        self.parent.logger.info('isy:set_on: %s node.on()' % (self.name))
         if self.scene != False:
             ret = self.scene.on()
-            self.parent.logger.info('pyhue:isy_handler.set_on: %s scene.on() = %s' % (self.name, str(ret)))
+            self.parent.logger.info('isy:set_on: %s scene.on() = %s' % (self.name, str(ret)))
         else:
             # TODO: If the node is a KPL button, we can't control it, which shows an error.
             ret = self.main.on()
         return ret
                 
     def set_off(self):
-        self.parent.logger.info('pyhue:isy_handler.set_off: %s node.off()' % (self.name))
+        self.parent.logger.info('isy:set_off: %s node.off()' % (self.name))
         if self.scene != False:
             ret = self.scene.off()
-            self.parent.logger.info('pyhue:isy_handler.set_off: %s scene.off() = %s' % (self.name, str(ret)))
+            self.parent.logger.info('isy:set_off: %s scene.off() = %s' % (self.name, str(ret)))
         else:
             # TODO: If the node is a KPL button, we can't control it, which shows an error.
             ret = self.main.off()
             return ret
                 
     def set_bri(self,value):
-        self.parent.logger.info('pyhue:isy_handler.set_bri: %s on val=%d' % (self.name, value))
+        self.parent.logger.info('isy:set_bri: %s on val=%d' % (self.name, value))
         # Only set directly on the node when it's dimmable and value is not 0 or 254
         if self.main.dimmable and value > 0 and value < 254:
             # val=bri does not work?
+            # TODO: If the device is not already on, then turn the scene on, then change the brigthness
             ret = self.main.on(value)
-            self.parent.logger.info('pyhue:isy_handler.set_bri: %s node.on(%d) = %s' % (self.name, value, str(ret)))
+            self.parent.logger.info('isy:set_bri: %s node.on(%d) = %s' % (self.name, value, str(ret)))
         else:
             if value > 0:
                 ret = self.set_on()
@@ -273,7 +282,7 @@ class isy_node_handler():
             else:
                 ret = self.set_off()
                 self.bri = 0
-        self.parent.logger.info('pyhue:isy_handler.set_bri: %s on=%s bri=%d' % (self.name, self.on, self.bri))
+        self.parent.logger.info('isy:set_bri: %s on=%s bri=%d' % (self.name, self.on, self.bri))
         return ret
 
 class bridge():
@@ -300,42 +309,77 @@ class bridge():
             print info[0]
             self.username = info[0]["success"]["username"]
         # TODO: else should throw error
-        self.logger.error("ihab:bridge: username=%s",self.username)
+        self.logger.error("bridge: username=%s",self.username)
         
     def get_devices(self):
         (bstat,devices) = self.connection.request('/devices')
         if bstat != True:
-            self.logger.error("ihab:bridge: communicating with bridge %s:%s",self.host,self.port)
+            self.logger.error("bridge: communicating with bridge %s:%s",self.host,self.port)
             return False
         self.devices = json.loads(devices)
         #print json.dumps(self.devices)
         for dev in self.devices:
-            self.logger.debug("ihab:brige: found name=%s id=%s mapId=%s",dev["name"],dev["id"],dev["mapId"])
+            self.logger.debug("brige: found name=%s id=%s mapId=%s",dev["name"],dev["id"],dev["mapId"])
 
     def add_or_update_device(self,device):
         fdev = self.has_device_by_mapId(device["mapId"])
         if fdev is False:
-            self.logger.info("ihab:bridge: adding device '%s' %s",device["name"],device["mapId"])
-            #(st,res) = self.connection.request('/%s/devices' % (self.username),type='post', body=device)
-            (st,res) = self.connection.request('/devices', type='post', body=device)
-            self.logger.info("ihab:bridge: st=%s",st)
-            if st:
-                res = json.loads(res)
-                id = res[0]["id"]
-                return(st,id)
+            sdev = self.has_device_by_name(device["name"])
+            if sdev is not False:
+                self.logger.info("bridge:add_or_update: already have device '%s' as %s, will change to %s",device["name"],sdev["mapId"],device["mapId"])
+                return self.update(sdev,device)
             else:
-                return(st,"")
+                return self.add(device)
         else:
-            self.logger.info("ihab:bridge: updating device '%s' %s",device["name"],device["mapId"])
-            #(st,res) = self.connection.request('/%s/devices/%s' % (self.username,fdev["id"]), type='post', body=device)
-            (st,res) = self.connection.request('/devices/%s' % (fdev["id"]), type='post', body=device)
-            self.logger.info("ihab:bridge: st=%s",st)
-            # TODO: Parse return status to make sure it was "success"?
-            return (st,fdev["id"])
+            # Already have a device with our mapId, so update it in case something changed.
+            return self.update(fdev,device)
+
+    def add(self,device):
+        self.logger.info("bridge:add: '%s' %s",device["name"],device["mapId"])
+        (st,res) = self.connection.request('/devices', type='post', body=device)
+        self.logger.info("bridge:add: st=%s",st)
+        # TODO: Parse return res to make sure it was "success"?
+        if st:
+            res = json.loads(res)
+            id = res[0]["id"]
+            return(st,id)
+        else:
+            self.logger.error("bridge:add: " + device)
+            return(st,"")
+
+    def update(self,cdev,udev):
+        self.logger.info("bridge:update: '%s' %s",cdev["name"],cdev["mapId"])
+        # Update cdev with params in udev
+        i = 0
+        for item in udev:
+            if cdev[item] != udev[item]:
+                self.logger.info("bridge:update: %s '%s'->'%s'",item,cdev[item],udev[item])
+                cdev[item] = udev[item]
+                i += 1
+        if i > 0:
+            #self.logger.info("bridge:update:" + str(cdev))
+            (st,res) = self.connection.request('/devices/%s' % (cdev["id"]), type='put', body=cdev)
+            self.logger.info("bridge:update: st=%s",st)
+            # TODO: Parse return res to make sure it was "success"?
+            if st:
+                (cst,cres) = self.connection.request('/devices/%s' % (cdev["id"]), type='get')
+            else:
+                self.logger.error("bridge:update: " + str(cdev))
+        else:
+            # Nothing to update.
+            self.logger.info("bridge:update: No change for '%s'",cdev["name"])
+            st = True
+        return (st,cdev["id"])
         
     def has_device_by_mapId(self,mapId):
         for dev in self.devices:
             if dev["mapId"] == mapId:
+                return dev
+        return False
+
+    def has_device_by_name(self,name):
+        for dev in self.devices:
+            if dev["name"] == name:
                 return dev
         return False
 
@@ -344,8 +388,8 @@ class bridge():
             "on"  : on,
             "bri" : bri,
         }
-        self.logger.info("ihab:bridge:set_device_state '%s'=%s",id,state)
-        (st,res) = self.connection.request('/%s/lights/%s/bridgeupdatestate' % (self.username,id), type='put', body=state)
+        self.logger.info("bridge:set_device_state '%s'=%s",id,state)
+        #(st,res) = self.connection.request('/%s/lights/%s/bridgeupdatestate' % (self.username,id), type='put', body=state)
     
 # Load the config file.
 config = load_config()
@@ -354,19 +398,16 @@ print("This host IP is " + config['this_host']['host'])
 # Start the log_file
 logger = get_logger(config)
 
-# Prepare the REST interface
-#rest = Rest(config,logger)
-
+# Prep the bridge
 bridge = bridge(config,logger)
 
+# Prep the ISY conneciton.
 isy = isy(config,logger,bridge)
 
 # Start the REST interface
-# TODO: I'm not really happy with having the rest be an object, since auto-reload does not work
 info = "Starting REST interface..."
 logger.info(info)
 print info
-#rest.run(bridge,isy)
 # REST Interface
 app = Flask(__name__)
 # TODO: Need a way to set debug in config an rest command
@@ -376,14 +417,31 @@ app.debug = True
 def top():
     app.logger.info("REST:top")
     out  =["ISYHelper HABridge: %s<br>Requestor: %s<br>" % (config['version'],request.remote_addr)]
+    out.append("<h1>Functions:</h1><ul>\n")
+    out.append("<li><A HREF='/log'>View Log</A><br>")
+    out.append("<li><A HREF='/refresh'>Refresh ISY Devices</A><br>")
+    out.append("</ul>")
     out.append("<h1>ISY Spoken Devices</h1><ul>\n")
-    for device in isy.devices:
-        out.append("<li>Spoken: '{0}' Device: {1}<ul><li><A HREF='{2}'>on</a><li><A HREF='{3}'>off</a><li><A HREF='{4}'>on 50%</a></ul>".format(device.name,device.main._id,device.isy_on,device.isy_off,device.isy_bri.format('128')))
+    #out.append("<table><th>Spoken<th>Device<th>ISY Commands<th>Scene<
+    for device in sorted(isy.devices, key=attrgetter('name')):
+        out.append("<li>Spoken: '{0}' ID; {1} Device: {2}<ul><li><A HREF='{3}'>on</a><li><A HREF='{4}'>off</a><li><A HREF='{5}'>on 50%</a></ul>".format(device.name,device.bid,device.main._id,device.isy_on,device.isy_off,device.isy_bri.format('128')))
         if device.scene is False:
             out.append(" scene=%s" % (device.scene))
         else:
             out.append(" scene: controller id=%s name=%s" % (device.scene._id,device.scene.name))
         out.append("<br>node id=%s name=%s\n" % (device.main._id,device.main.name))
+    return ''.join(out)
+
+@app.route("/log")
+def log():
+    app.logger.info("REST:log")
+    if config['log_file'] == None or config['log_file'] == "none" or config['log_file'] == "":
+        return "config log_file="+config['log_file']
+    out = ["ISYHelper HABridge: %s<br>" % (config['log_file'])]
+    fo = open(config['log_file'],"r")
+    for line in fo:
+        out.append(line+"<br>")
+    fo.close
     return ''.join(out)
 
 app.run(host=config['this_host']['host'], port=int(config['this_host']['port']))

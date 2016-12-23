@@ -21,10 +21,10 @@ class Connection(object):
         self._port = port
         self._username = username
         self._password = password
-
         # test settings
-        if not self.ping():
-            raise(ValueError('Could not connect to the %s:%s ' % (address,str(port))))
+        # TODO: Need a way to just connect without sending a request to make sure it works?
+        #if not self.ping():
+        #    raise(ValueError('Could not connect to the %s:%s ' % (address,str(port))))
 
     def request(self, path, type='get', payload=None, body=None, ok404=False):
         url = "http://{}:{}/api{}".format(self._address,self._port,path)
@@ -54,7 +54,7 @@ class Connection(object):
                 response = requests.put(
                     url,
                     #auth=auth,
-                    params=payload,
+                    data=json.dumps(body),
                     timeout=10
                 )
             else:
@@ -93,9 +93,9 @@ class Connection(object):
     # PING
     # This is a dummy command that does not exist in the REST API
     # this function return True if the device is alive
-    def ping(self):
-        #req_url = self.compileURL(['devices/habridge/version'])
-        #req_url = self.compileURL(['devices'])
-        result = self.request('devices', ok404=True)
-        return result is not None
+    #def ping(self):
+    #    #req_url = self.compileURL(['devices/habridge/version'])
+    #    #req_url = self.compileURL(['devices'])
+    #    result = self.request('', ok404=True)
+    #    return result is not None
 
