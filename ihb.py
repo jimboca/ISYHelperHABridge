@@ -364,7 +364,7 @@ class bridge():
             if "mapId" in dev:
                 self.logger.debug("brige: found name=%s id=%s mapId=%s",dev["name"],dev["id"],dev["mapId"])
             else:
-                self.logger.debug("brige: found name=%s id=%s mapId=%s",dev["name"],dev["id"],dev["mapId"])
+                self.logger.debug("brige: found name=%s id=%s mapId=()",dev["name"],dev["id"])
 
     def devices(self):
         return self.devices
