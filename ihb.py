@@ -192,7 +192,7 @@ class isy():
         # Now that we have all devices, delete bridge devices that don't exist anymore
         prog = re.compile("isy:.+$")
         for bdev in self.bridge.devices:
-            if self.has_device_by_id(bdev["id"]) is False and prog.match(bdev["mapId"]):
+            if self.has_device_by_id(bdev["id"]) is False and "mapId" in bdev and prog.match(bdev["mapId"]):
                 self.logger.warning("isy: Removing bridge device %s '%s'(%s)",bdev["id"],bdev["name"],bdev["mapId"])
                 self.bridge.delete(bdev)
             
@@ -361,7 +361,10 @@ class bridge():
         self.devices = json.loads(devices)
         #print json.dumps(self.devices)
         for dev in self.devices:
-            self.logger.debug("brige: found name=%s id=%s mapId=%s",dev["name"],dev["id"],dev["mapId"])
+            if "mapId" in dev:
+                self.logger.debug("brige: found name=%s id=%s mapId=%s",dev["name"],dev["id"],dev["mapId"])
+            else:
+                self.logger.debug("brige: found name=%s id=%s mapId=%s",dev["name"],dev["id"],dev["mapId"])
 
     def devices(self):
         return self.devices
@@ -424,7 +427,7 @@ class bridge():
         
     def has_device_by_mapId(self,mapId):
         for dev in self.devices:
-            if dev["mapId"] == mapId:
+            if "mapId" in dev and dev["mapId"] == mapId:
                 return dev
         return False
 
