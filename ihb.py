@@ -14,6 +14,7 @@ import json
 import yaml
 import socket
 import os
+import re
 from operator import itemgetter, attrgetter, methodcaller
 from Connection import Connection
 from flask import Flask
@@ -189,8 +190,9 @@ class isy():
                     else:
                         self.logger.error("isy: Duplicate Ignored: '%s' for mnode='%s' cnode=%s" % (spoken,mnode,cnode))
         # Now that we have all devices, delete bridge devices that don't exist anymore
+        prog = re.compile("isy:.+$")
         for bdev in self.bridge.devices:
-            if self.has_device_by_id(bdev["id"]) is False:
+            if self.has_device_by_id(bdev["id"]) is False and prog.match(bdev["mapId"]):
                 self.logger.warning("isy: Removing bridge device %s '%s'(%s)",bdev["id"],bdev["name"],bdev["mapId"])
                 self.bridge.delete(bdev)
             
