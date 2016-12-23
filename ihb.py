@@ -137,7 +137,7 @@ class isy():
         self.port     = config['isy']['port']
         self.bridge   = bridge
         self.isy_url  = "http://%s:%s@%s:%s/rest/nodes" % (self.user,self.password,self.host,self.port)
-        self.ihb_url  = "http://%s:%s/ihb/device" % (config['this_host']['host'],config['this_host']['port'])
+        self.ihb_url  = "http://%s:%s" % (config['this_host']['host'],config['this_host']['port'])
         if config['isy']['log_enable']:
             log = self.logger
         else:
@@ -190,6 +190,28 @@ class isy():
             if dev.name == name:
                 return dev
         return False
+
+    def has_device_by_id(self,id):
+        for dev in self.devices:
+            if dev.bid == id:
+                return dev
+        return False
+
+    def do_cmd(self,id,cmd,val=None):
+        dev = self.has_device_by_id(id)
+        if dev is False:
+            self.logger.error("isy: No device '%s' for command '%s'",str(id),cmd)
+            return dev
+        if cmd == "on":
+            if val is None:
+                return dev.set_on()
+            else:
+                return dev.set_bri(val)
+        elif cmd == "off":
+            return dev.set_off()
+        self.logger.error("isy: Unknown command '%s' for device '%s'",cmd,str(id))
+        return False
+        
 #
 # These push device changes to the ha-bridge
 #
@@ -209,16 +231,18 @@ class isy_node_handler():
         self.isy_on  = "%s/DON" % (self.isy_url)
         self.isy_off = "%s/DOF" % (self.isy_url)
         self.isy_bri = "%s/DON/{}" % (self.isy_url)
-        # IHB URL's
-        self.ihb_url = "%s/%s/cmd" % (self.parent.ihb_url,quote(self.main._id))
-        self.ihb_on  = "%s/DON" % (self.ihb_url)
-        self.ihb_off = "%s/DOF" % (self.ihb_url)
-        self.ihb_bri = "%s/DON/{}" % (self.ihb_url)
         # The URL's that are passed to ha-bridge to control this device.
         self.f_on  = self.isy_on
         self.f_off = self.isy_off
         self.f_bri = self.isy_bri
+        # Add it to the ha-bridge cause we need it's id.
         self.add_or_update()
+        # IHB URL's
+        self.ihb_url = "%s/device/%s" % (self.parent.ihb_url,quote(self.bid))
+        self.ihb_on  = "%s/on" % (self.ihb_url)
+        self.ihb_off = "%s/off" % (self.ihb_url)
+        self.ihb_bri = "%s/on/{}" % (self.ihb_url)
+        # TODO: Reset f_* functions if controlling thru ihab
         
     def add_or_update(self):
         self.payload = {
@@ -423,9 +447,11 @@ def top():
     out.append("<li><A HREF='/refresh'>Refresh ISY Devices</A><br>")
     out.append("</ul>")
     out.append("<h1>ISY Spoken Devices</h1><ul>\n<table>")
-    out.append("<tr border=1><th>HueId<th>Spoken<th colspan=2>Device<th colspan=3>ISY Commands<th colspan=2>Scene</tr>")
+    out.append("<tr border=1><th>HueId<th>Spoken<th colspan=2>Device<th colspan=3>ISY Commands<th colspan=3>IHAB Commands<th colspan=2>Scene</tr>")
     for device in sorted(isy.devices, key=attrgetter('name')):
-        out.append("<tr><td align=right>{0}<td>{1}<td>{2}<td>{3}<td><A HREF='{4}'>on</a><td><A HREF='{5}'>off</a><td><A HREF='{6}'>on 50%</a>".format(device.bid,device.name,device.main._id,device.main.name,device.isy_on,device.isy_off,device.isy_bri.format('128')))
+        out.append("<tr><td>{0}<td>{1}<td>{2}<td>{3}".format(device.bid,device.name,device.main._id,device.main.name))
+        out.append("<td><A HREF='{0}'>on</a><td><A HREF='{1}'>off</a><td><A HREF='{2}'>50%</a>".format(device.isy_on,device.isy_off,device.isy_bri.format('128')))
+        out.append("<td><A HREF='{0}'>on</a><td><A HREF='{1}'>off</a><td><A HREF='{2}'>50%</a>".format(device.ihb_on,device.ihb_off,device.ihb_bri.format('128')))
         if device.scene is False:
             out.append("<td>{0}<td>&nbsp;".format(device.scene))
         else:
@@ -444,5 +470,22 @@ def log():
         out.append(line+"<br>")
     fo.close
     return ''.join(out)
+
+@app.route("/device/<id>/<cmd>")
+def device_id_cmd(id,cmd):
+    app.logger.info("REST:device %s %s",id,cmd)
+    if isy.do_cmd(id,cmd):
+        return "ok", 200
+    else:
+        return "ERROR", 404
+        
+@app.route("/device/<id>/<cmd>/<val>")
+def device_id_cmd_val(id,cmd,val):
+    app.logger.info("REST:device %s %s",id,cmd)
+    if isy.do_cmd(id,cmd,val):
+        return "ok", 200
+    else:
+        return "ERROR", 404
+        
 
 app.run(host=config['this_host']['host'], port=int(config['this_host']['port']))
