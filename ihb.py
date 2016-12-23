@@ -2,7 +2,7 @@
 #
 
 NAME    = "ISYHABridge"
-VERSION = "1.15"
+VERSION = "0.2"
 
 # When run in directory containing downloaded PyIsy
 import sys
