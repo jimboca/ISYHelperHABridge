@@ -4,7 +4,6 @@
 NAME    = "ISYHABridge"
 VERSION = "0.2"
 
-# When run in directory containing downloaded PyIsy
 import sys
 import logging
 import logging.handlers
@@ -28,11 +27,13 @@ except ImportError:
     from urllib.parse import urlencode
 # Load our dependancies
 from datetime import datetime
+# When run in directory containing downloaded PyIsy above it.
 sys.path.insert(0,"../PyISY")
 sys.path.insert(0,"../VarEvents")
 import PyISY
 
 print('ISYHelperHABridge: Version %s Started: %s' % (VERSION, datetime.now()))
+
 def get_network_ip(rhost):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect((rhost, 0))
@@ -421,15 +422,15 @@ def top():
     out.append("<li><A HREF='/log'>View Log</A><br>")
     out.append("<li><A HREF='/refresh'>Refresh ISY Devices</A><br>")
     out.append("</ul>")
-    out.append("<h1>ISY Spoken Devices</h1><ul>\n")
-    #out.append("<table><th>Spoken<th>Device<th>ISY Commands<th>Scene<
+    out.append("<h1>ISY Spoken Devices</h1><ul>\n<table>")
+    out.append("<tr border=1><th>HueId<th>Spoken<th colspan=2>Device<th colspan=3>ISY Commands<th colspan=2>Scene</tr>")
     for device in sorted(isy.devices, key=attrgetter('name')):
-        out.append("<li>Spoken: '{0}' ID; {1} Device: {2}<ul><li><A HREF='{3}'>on</a><li><A HREF='{4}'>off</a><li><A HREF='{5}'>on 50%</a></ul>".format(device.name,device.bid,device.main._id,device.isy_on,device.isy_off,device.isy_bri.format('128')))
+        out.append("<tr><td align=right>{0}<td>{1}<td>{2}<td>{3}<td><A HREF='{4}'>on</a><td><A HREF='{5}'>off</a><td><A HREF='{6}'>on 50%</a>".format(device.bid,device.name,device.main._id,device.main.name,device.isy_on,device.isy_off,device.isy_bri.format('128')))
         if device.scene is False:
-            out.append(" scene=%s" % (device.scene))
+            out.append("<td>{0}<td>&nbsp;".format(device.scene))
         else:
-            out.append(" scene: controller id=%s name=%s" % (device.scene._id,device.scene.name))
-        out.append("<br>node id=%s name=%s\n" % (device.main._id,device.main.name))
+            out.append("<td>{0}<td>{1}".format(device.scene._id,device.scene.name))
+    out.append("</table>")
     return ''.join(out)
 
 @app.route("/log")
