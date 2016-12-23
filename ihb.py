@@ -1,6 +1,8 @@
 #!/usr/bin/python
 #
-
+# TODO:
+#  - Catch ISY or BRIGDE errors to and log them
+#
 NAME    = "ISYHABridge"
 VERSION = "0.2"
 
@@ -144,29 +146,31 @@ class isy():
             log=None
         info = "isy: Connecting %s:%s log=%s" % (self.host,self.port,log)
         print(info)
-        logger.info(info)
-        isy = PyISY.ISY(self.host, self.port, self.user, self.password, False, "1.1", log=log)
-        info = "isy: connected: %s" % (str(isy.connected))
+        self.logger.info(info)
+        self.isy = PyISY.ISY(self.host, self.port, self.user, self.password, False, "1.1", log=log)
+        info = "isy: connected: %s" % (str(self.isy.connected))
         print(info)
-        logger.info(info)
-        isy.auto_update = True
-        self.devices = []
+        self.logger.info(info)
+        self.isy.auto_update = True
+        self.get_spoken()
 
+    def get_spoken(self):
         info = "isy: Checking for Spoken objects."
         print(info)
-        logger.info(info)
-        for child in isy.nodes.allLowerNodes:
+        self.logger.info(info)
+        self.devices = []
+        for child in self.isy.nodes.allLowerNodes:
             #print child
             if child[0] is 'node' or child[0] is 'group':
-                #logger.info(child)
-                mnode = isy.nodes[child[2]]
+                #self.logger.info(child)
+                mnode = self.isy.nodes[child[2]]
                 spoken = mnode.spoken
                 if spoken is not None:
                     # TODO: Should this be a comman seperate list of which echo will respond?
                     # TODO: Or should that be part of notes?
                     if spoken == '1':
                         spoken = mnode.name
-                    logger.info("isy: name=%s spoken=%s" % (mnode.name,str(spoken)))
+                    self.logger.info("isy: name=%s spoken=%s" % (mnode.name,str(spoken)))
                     cnode = False
                     if child[0] is 'node':
                         # Is it a controller of a scene?
@@ -174,17 +178,22 @@ class isy():
                         if len(cgroup) > 0:
                             #mnode = cgroup
                             # TODO: We don't need to do this anymore, since we can put Spoken on Scenes!
-                            cnode = isy.nodes[cgroup[0]]
-                            logger.info("isy: %s is a scene controller of %s='%s'" % (str(cgroup[0]),str(cnode),cnode.name))
+                            cnode = self.isy.nodes[cgroup[0]]
+                            self.logger.info("isy: %s is a scene controller of %s='%s'" % (str(cgroup[0]),str(cnode),cnode.name))
                     else:
                         # TODO: This shoud be all scene responders that are dimmable?
                         if len(mnode.controllers) > 0:
-                            cnode = isy.nodes[mnode.controllers[0]]
+                            cnode = self.isy.nodes[mnode.controllers[0]]
                     if self.has_device_by_name(spoken) is False:
                         self.devices.append(isy_node_handler(self,spoken,mnode,cnode))
                     else:
-                        logger.error("isy: Duplicate Ignored: '%s' for mnode='%s' cnode=%s" % (spoken,mnode,cnode))
-        
+                        self.logger.error("isy: Duplicate Ignored: '%s' for mnode='%s' cnode=%s" % (spoken,mnode,cnode))
+        # Now that we have all devices, delete bridge devices that don't exist anymore
+        for bdev in self.bridge.devices:
+            if self.has_device_by_id(bdev["id"]) is False:
+                self.logger.warning("isy: Removing bridge device %s '%s'(%s)",bdev["id"],bdev["name"],bdev["mapId"])
+                self.bridge.delete(bdev)
+            
     def has_device_by_name(self,name):
         for dev in self.devices:
             if dev.name == name:
@@ -194,6 +203,12 @@ class isy():
     def has_device_by_id(self,id):
         for dev in self.devices:
             if dev.bid == id:
+                return dev
+        return False
+
+    def has_device_by_mapid(self,map_id):
+        for dev in self.devices:
+            if dev.map_id == map_id:
                 return dev
         return False
 
@@ -346,6 +361,9 @@ class bridge():
         for dev in self.devices:
             self.logger.debug("brige: found name=%s id=%s mapId=%s",dev["name"],dev["id"],dev["mapId"])
 
+    def devices(self):
+        return self.devices
+
     def add_or_update_device(self,device):
         fdev = self.has_device_by_mapId(device["mapId"])
         if fdev is False:
@@ -371,6 +389,12 @@ class bridge():
         else:
             self.logger.error("bridge:add: " + device)
             return(st,"")
+
+    def delete(self,device):
+        self.logger.info("bridge:delete: %s '%s' %s",device["id"],device["name"],device["mapId"])
+        (st,res) = self.connection.request('/devices/%s' % device["id"], type='delete')
+        self.logger.info("bridge:delete: st=%s",st)
+        return st
 
     def update(self,cdev,udev):
         self.logger.info("bridge:update: '%s' %s",cdev["name"],cdev["mapId"])

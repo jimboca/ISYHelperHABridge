@@ -39,6 +39,14 @@ class Connection(object):
                     params=payload,
                     timeout=10
                 )
+            elif (type == 'delete'):
+                self._logger.info("request:delete: %s",url)
+                response = requests.delete(
+                    url,
+                    #auth=auth,
+                    params=payload,
+                    timeout=10
+                )
             elif (type == 'post'):
                 self._logger.info("request:post: %s",url)
                 self._logger.info("request:post: body=%s", body)
@@ -58,7 +66,7 @@ class Connection(object):
                     timeout=10
                 )
             else:
-                raise(ValueError("type must be get, put, or post, not '%s'" % (type)))
+                raise(ValueError("type must be get, delete, put, or post, not '%s'" % (type)))
                 
         except requests.exceptions.Timeout:
             self._logger.error("Connection timed out: %s", url)
