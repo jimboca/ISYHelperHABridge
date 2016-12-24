@@ -2,6 +2,7 @@
 #
 # TODO:
 #  - Catch ISY or BRIGDE errors to and log them
+#  - Start REST in a thread, so it is activated earlier
 #
 NAME    = "ISYHABridge"
 VERSION = "0.2"
@@ -164,31 +165,31 @@ class isy():
             #print child
             if child[0] is 'node' or child[0] is 'group':
                 #self.logger.info(child)
-                mnode = self.isy.nodes[child[2]]
-                spoken = mnode.spoken
+                main = self.isy.nodes[child[2]]
+                spoken = main.spoken
                 if spoken is not None:
                     # TODO: Should this be a comman seperate list of which echo will respond?
                     # TODO: Or should that be part of notes?
                     if spoken == '1':
-                        spoken = mnode.name
-                    self.logger.info("isy: name=%s spoken=%s" % (mnode.name,str(spoken)))
-                    cnode = False
+                        spoken = main.name
+                    self.logger.info("isy: name=%s spoken=%s" % (main.name,str(spoken)))
+                    scene = False
                     if child[0] is 'node':
                         # Is it a controller of a scene?
-                        cgroup = mnode.get_groups(responder=False)
+                        cgroup = main.get_groups(responder=False)
                         if len(cgroup) > 0:
-                            #mnode = cgroup
                             # TODO: We don't need to do this anymore, since we can put Spoken on Scenes!
-                            cnode = self.isy.nodes[cgroup[0]]
-                            self.logger.info("isy: %s is a scene controller of %s='%s'" % (str(cgroup[0]),str(cnode),cnode.name))
-                    else:
+                            scene = self.isy.nodes[cgroup[0]]
+                            self.logger.info("isy: %s is a scene controller of %s='%s'" % (str(cgroup[0]),str(scene),scene.name))
+                    #else:
                         # TODO: This shoud be all scene responders that are dimmable?
-                        if len(mnode.controllers) > 0:
-                            cnode = self.isy.nodes[mnode.controllers[0]]
+                        # TODO: Let set_on commands handle these
+                        #if len(main.controllers) > 0:
+                        #    scene = self.isy.nodes[main.controllers[0]]
                     if self.has_device_by_name(spoken) is False:
-                        self.devices.append(isy_node_handler(self,spoken,mnode,cnode))
+                        self.devices.append(isy_node_handler(self,spoken,main,scene))
                     else:
-                        self.logger.error("isy: Duplicate Ignored: '%s' for mnode='%s' cnode=%s" % (spoken,mnode,cnode))
+                        self.logger.error("isy: Duplicate Ignored: '%s' for main='%s' scene=%s" % (spoken,main,scene))
         # Now that we have all devices, delete bridge devices that don't exist anymore
         prog = re.compile("isy:.+$")
         for bdev in self.bridge.devices:
@@ -260,6 +261,8 @@ class isy_node_handler():
         self.ihb_off = "%s/off" % (self.ihb_url)
         self.ihb_bri = "%s/on/{}" % (self.ihb_url)
         # TODO: Reset f_* functions if controlling thru ihab
+        # Set my on/off/bri status.
+        self.get_all()
         
     def add_or_update(self):
         self.payload = {
@@ -291,42 +294,58 @@ class isy_node_handler():
                 
     def set_on(self):
         self.parent.logger.info('isy:set_on: %s node.on()' % (self.name))
-        if self.scene != False:
-            ret = self.scene.on()
-            self.parent.logger.info('isy:set_on: %s scene.on() = %s' % (self.name, str(ret)))
-        else:
+        if self.scene is False:
             # TODO: If the node is a KPL button, we can't control it, which shows an error.
             ret = self.main.on()
+        else:
+            ret = self.scene.on()
+            self.parent.logger.info('isy:set_on: %s scene.on() = %s' % (self.name, str(ret)))
         return ret
                 
     def set_off(self):
         self.parent.logger.info('isy:set_off: %s node.off()' % (self.name))
-        if self.scene != False:
-            ret = self.scene.off()
-            self.parent.logger.info('isy:set_off: %s scene.off() = %s' % (self.name, str(ret)))
-        else:
+        if self.scene is False:
             # TODO: If the node is a KPL button, we can't control it, which shows an error.
             ret = self.main.off()
-            return ret
+        else:
+            ret = self.scene.off()
+            self.parent.logger.info('isy:set_off: %s scene.off() = %s' % (self.name, str(ret)))
+        return ret
                 
     def set_bri(self,value):
+        value = int(value)
         self.parent.logger.info('isy:set_bri: %s on val=%d' % (self.name, value))
-        # Only set directly on the node when it's dimmable and value is not 0 or 254
-        if self.main.dimmable and value > 0 and value < 254:
-            # val=bri does not work?
-            # TODO: If the device is not already on, then turn the scene on, then change the brigthness
-            ret = self.main.on(value)
-            self.parent.logger.info('isy:set_bri: %s node.on(%d) = %s' % (self.name, value, str(ret)))
+        # Just controlling a device/scene?
+        if self.scene is False:
+            ret = self._set_bri(self.main,value)
         else:
-            if value > 0:
-                ret = self.set_on()
-                self.bri = 255
-            else:
-                ret = self.set_off()
-                self.bri = 0
-        self.parent.logger.info('isy:set_bri: %s on=%s bri=%d' % (self.name, self.on, self.bri))
+            # Controlling all responders in the scene.
+            ret = True
+            for mem in self.scene.members:
+                if not self._set_bri(self.scene.parent[mem],value):
+                    ret = False
+        if ret:
+            self.bri = value
         return ret
 
+    def _set_bri(self,device,value):
+        # Only set directly on the node when it's dimmable and value is not 0 or 254
+        if device.dimmable and value > 0 and value < 254:
+            # val=bri does not work?
+            # TODO: If the device is not already on, then turn the scene on, then change the brigthness
+            ret = device.on(value)
+            self.parent.logger.info('isy:_set_bri: %s %s.on(%d)' % (self.name, device.name, value))
+        else:
+            if value > 0:
+                self.parent.logger.info('isy:_set_bri: %s %s.on()' % (self.name, device.name))
+                ret = device.on()
+                self.bri = 255
+            else:
+                self.parent.logger.info('isy:_set_bri: %s %s.off() = %s' % (self.name, device.name))
+                ret = device.off()
+        self.parent.logger.info('isy:_set_bri: %s %s on=%s bri=%d' % (self.name, device.name, self.on, self.bri))
+        return ret
+        
 class bridge():
     def __init__(self,config,logger):
         self.config = config
@@ -362,9 +381,9 @@ class bridge():
         #print json.dumps(self.devices)
         for dev in self.devices:
             if "mapId" in dev:
-                self.logger.debug("brige: found name=%s id=%s mapId=%s",dev["name"],dev["id"],dev["mapId"])
+                self.logger.debug("bridge: found name=%s id=%s mapId=%s",dev["name"],dev["id"],dev["mapId"])
             else:
-                self.logger.debug("brige: found name=%s id=%s mapId=()",dev["name"],dev["id"])
+                self.logger.debug("bridge: found name=%s id=%s mapId=()",dev["name"],dev["id"])
 
     def devices(self):
         return self.devices
@@ -471,6 +490,7 @@ app.debug = True
 def top():
     app.logger.info("REST:top")
     out  =["ISYHelper HABridge: %s<br>Requestor: %s<br>" % (config['version'],request.remote_addr)]
+    out.append("<h1><A HREF='http://%s:%s'>ha-bridge</A>\n" % (config['bridge']['host'],config['bridge']['port']))
     out.append("<h1>Functions:</h1><ul>\n")
     out.append("<li><A HREF='/log'>View Log</A><br>")
     out.append("<li><A HREF='/refresh'>Refresh ISY Devices</A><br>")
