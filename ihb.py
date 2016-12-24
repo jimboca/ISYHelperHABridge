@@ -253,7 +253,7 @@ class isy_node_handler():
         self.f_on  = self.isy_on
         self.f_off = self.isy_off
         self.f_bri = self.isy_bri
-        # Add it to the ha-bridge cause we need it's id.
+        # Add it to the ha-bridge cause we need it's id for the ihb url's
         self.add_or_update()
         # IHB URL's
         self.ihb_url = "%s/device/%s" % (self.parent.ihb_url,quote(self.bid))
@@ -261,6 +261,9 @@ class isy_node_handler():
         self.ihb_off = "%s/off" % (self.ihb_url)
         self.ihb_bri = "%s/on/{}" % (self.ihb_url)
         # TODO: Reset f_* functions if controlling thru ihab
+        if not self.scene is False:
+            self.f_bri = self.ihb_bri
+            self.add_or_update()
         # Set my on/off/bri status.
         self.get_all()
         
