@@ -6,17 +6,21 @@
 #
 
 # Load our dependancies
-import sys,time,threading,subprocess,re
+import sys,time,threading,subprocess,re,os
 from operator import itemgetter, attrgetter, methodcaller
 from traceback import format_exception
 #from multiprocessing import Process, Queue;
-from Misc import load_config,get_logger
-from Bridge import bridge
-from ISY import isy
 from flask import Flask
 from flask import request
 #from Rest import Rest
 from datetime import datetime
+# We need the new version of PyISY which isn't released...
+sys.path.insert(0,os.path.dirname(os.path.dirname(os.path.realpath(__file__)))+"/PyISY")
+# Our libs are in the same dir as this file + ihab
+sys.path.insert(0,os.path.dirname(os.path.realpath(__file__))+"/ihab")
+from Misc import load_config,get_logger
+from Bridge import bridge
+from ISY import isy
 
 # ******************************************************************************
 

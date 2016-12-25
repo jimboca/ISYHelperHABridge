@@ -1,6 +1,6 @@
 
 # The log file.
-log_file: ihb.log
+log_file: logs/ihab.log
 # debug or info
 log_level: debug
 

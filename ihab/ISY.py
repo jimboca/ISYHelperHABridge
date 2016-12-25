@@ -9,9 +9,6 @@ except ImportError:
     from urllib.parse import urlencode
 import sys
 import re
-# When run in directory containing downloaded PyIsy above it.
-sys.path.insert(0,"../PyISY")
-sys.path.insert(0,"../VarEvents")
 import PyISY
 
 class isy():
