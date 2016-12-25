@@ -6,8 +6,8 @@
 #
 
 # Load our dependancies
-import sys,time,thread
-#subprocess
+import sys,time,threading,subprocess,re
+from operator import itemgetter, attrgetter, methodcaller
 from traceback import format_exception
 #from multiprocessing import Process, Queue;
 from Misc import load_config,get_logger
@@ -71,8 +71,8 @@ def top():
         out.append("<h1><A HREF='http://%s:%s'>ha-bridge</A>\n" % (config['bridge']['host'],config['bridge']['port']))
         out.append("<h1>Functions:</h1><ul>\n")
         out.append("<li><A HREF='/log'>View Log</A><br>")
-        out.append("<li><A HREF='/restart'>Refresh IHAB</A><br>")
-        out.append("<li><A HREF='/refresh'>Refresh ISY Devices (not working yet)</A><br>")
+        out.append("<li><A HREF='/restart'>Restart IHAB</A><br>")
+        out.append("<li><A HREF='/refresh'>Refresh ISY Devices</A><br>")
         out.append("</ul>")
         if status.get() is False:
             out.append("<h1>ISY Spoken Devices</h1><ul>\n<table>")
@@ -92,15 +92,6 @@ def top():
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         return "<pre>Top Error: %s</pre>" % ''.join(format_exception(exc_type, exc_value, exc_traceback))
-
-@app.route('/restart')
-def restart():
-    try:
-        some_queue.put("restart")
-        return "Quit"
-    except:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        return "<pre>Restart Error: %s</pre>" % ''.join(format_exception(exc_type, exc_value, exc_traceback))
 
 @app.route("/log")
 def log():
@@ -130,21 +121,55 @@ def device_id_cmd_val(id,cmd,val):
     else:
         return "ERROR", 404
 
+def shutdown_server():
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    status.set("restart")
+    func()
+
+@app.route('/restart')
+def restart():
+    try:
+        shutdown_server()
+        return status.get()
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        return "<pre>Restart Error: %s</pre>" % ''.join(format_exception(exc_type, exc_value, exc_traceback))
+
+@app.route('/refresh')
+def refresh():
+    try:
+        status.set("Rebuilding spoken...")
+        # TODO: This needs to be run in a thread since it takes a while?
+        isy.get_spoken()
+        status.set(False)
+        return 'Spoken updated'
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        return "<pre>Restart Error: %s</pre>" % ''.join(format_exception(exc_type, exc_value, exc_traceback))
+
 
 # ******************************************************************************
 #
 # Start the REST Server
 #
-def start_flaskapp():
-    #global some_queue
-    #global st_queue
-    #some_queue = queue
-    #st_queue = st_q
-    app.run(host=config['this_host']['host'], port=int(config['this_host']['port']), use_reloader=False)
+class RestThread(threading.Thread):
+    def __init__(self):
+        #self.threadID = threadID
+        threading.Thread.__init__(self)
 
-status.set("Starting REST interface...")
-thread.start_new_thread(start_flaskapp,())
+    def run(self):
+        status.set("Starting REST interface...")
+        app.run(host=config['this_host']['host'], port=int(config['this_host']['port']), use_reloader=False)
+        # Can't call 
+        print "Exiting REST interface..."
 
+rest_thread = RestThread()
+rest_thread.daemon = True
+rest_thread.start()
+
+   
 # ******************************************************************************
 #
 # Prep the bridge
@@ -161,12 +186,24 @@ isy = isy(config,logger,status,bridge)
 #
 status.set("Initialization complete.")
 status.set(False)
-while True: #wathing queue, if there is no call than sleep, otherwise break
-    #if q.empty(): 
+# Don't give control to flask, since that causes cntl-C to be ignored...
+iprog = re.compile("isy: .+$")
+while True:
+    if status.get() is False:
         time.sleep(1)
-    #else:
-    #    break
-status.set("Restarting...")
-#p.terminate() #terminate flaskapp and then restart the app on subprocess
-#args = [sys.executable] + [sys.argv[0]]
-#subprocess.call(args)
+    elif iprog.match(status.get()):
+        # ISY is busy updating...
+        time.sleep(1)
+    else:
+        break
+
+if status.get() == "restart":
+    args = [sys.executable] + [sys.argv[0]]
+    status.set("Restarting: %s" % (args))
+    subprocess.call(args)
+elif status.get() == "exit":
+    status.set("Exiting...")
+else:
+    print "Uknown Status " + status.get() + " Exiting.."
+
+
