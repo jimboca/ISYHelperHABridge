@@ -127,6 +127,7 @@ class isy_node_handler():
         # The URL's that are passed to ha-bridge to control this device.
         self.f_on  = self.isy_on
         self.f_off = self.isy_off
+        # TODO: If main is a scene, we should not set this since it does nothing?
         self.f_bri = self.isy_bri
         # Add it to the ha-bridge cause we need it's id for the ihb url's
         self.add_or_update()

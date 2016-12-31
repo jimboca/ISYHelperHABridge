@@ -8,10 +8,10 @@ of just using the Portal?
 
 Harmony Hub's support Hue, so using this emulator allows controlling with
 Alexa, Google Home, and Harmony.  Controlling lights with a Harmony Elite
-remote with the home control buttons is awesome, even when Google can do it
-sometimes it's easier just to push a button.
+home control buttons is awesome, even when we can do it with voice control
+sometimes it's better to just to push a button.
 
-Control scenes as groups, so light levels can be set for a scene together.
+Control scenes as groups, so light levels can be set for a scene together!
 
 # ISY Spoken Property
 
@@ -25,26 +25,27 @@ then just enter that name.
 
 ## Devies or Scenes
 
-If you set the spoken on a scene, then that scene will be controlled directly.
-So you can not say 'set yourname to 30 percent', but you can say 'dim yourname'
-or 'brighten yourname' and the levels will dim/brighten together based on their
-current levels as set in the scene properties.  The advantage of this method
-is that ihab is not involved in the control, the direct control goes from ha-bridge
-to the ISY.
-
-(I'm going to look into allowing dim/bright and direct percent commands to see
-how they work, so might be able to do both?)
-
 If you set the spoken on a controller of a scene, this tells ihab that you want
 the abiity to control direct brightness levels of all responders in the scene
-at the same time.  So you can say 'set yourname to 30 percent' this will change
-ALL responders in that scene that are dimmable, to 30 percent.  But, with direct
-on/off commands it will still turn on the scene, so if you have other responders
-like KPL buttons, they will still turn on.
+at the same time.  So you can say 'set yourname to 30 percent' which will change
+ALL responders in that scene that are dimmable, to 30 percent.  You can also dim
+or brighten the scene, which will set all devices to the new brightness sent by
+Google Home or Alexa.  Note that when it is turned on or off, the ISY scene is
+controlled, so if you have other responders like KPL buttons, they will still turn
+on.  This could be enhanced further to dim/brighten each responder based on their
+current level, but I don't really have a need for that, so it hasn't been done yet.
+
+If you set the spoken on a scene, then that scene will be controlled directly.
+so you can not dim, brighten, or set the scene to a percentage.
 
 These two methods work very well for my enviornment, and makes my wife happy
 because things just work as one would expect.  But, if you have different requirments
 then please let me know.
+
+### Renameing
+
+If you rename a device on the ISY then you must restart IHAB.  This is an issue
+with PyISY that needs to be fixed...
 
 # Installation
 
