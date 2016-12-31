@@ -118,4 +118,4 @@ class bridge():
             "bri" : bri,
         }
         self.logger.info("bridge:set_device_state '%s'=%s",id,state)
-        #(st,res) = self.connection.request('/%s/lights/%s/bridgeupdatestate' % (self.username,id), type='put', body=state)
+        (st,res) = self.connection.request('/%s/lights/%s/bridgeupdatestate' % (self.username,id), type='put', body=state)

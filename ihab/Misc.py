@@ -85,7 +85,7 @@ def get_logger(config):
         if os.path.exists(config['log_file']):
             os.remove(config['log_file'])
         # Create the logger
-        logger = logging.getLogger('IH')
+        logger = logging.getLogger('IHAB')
         # Set the log level Warning level by default, unless log_level is debug or info
         if config['log_level'] == 'debug':
             logger.setLevel(logging.DEBUG)

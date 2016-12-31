@@ -76,6 +76,7 @@ def top():
         out.append("<h1>Functions:</h1><ul>\n")
         out.append("<li><A HREF='/log'>View Log</A><br>")
         out.append("<li><A HREF='/restart'>Restart IHAB</A><br>")
+        out.append("<li><A HREF='/exit'>Exit IHAB</A><br>")
         out.append("<li><A HREF='/refresh'>Refresh ISY Devices</A><br>")
         out.append("</ul>")
         if status.get() is False:
@@ -129,17 +130,27 @@ def shutdown_server():
     func = request.environ.get('werkzeug.server.shutdown')
     if func is None:
         raise RuntimeError('Not running with the Werkzeug Server')
-    status.set("restart")
     func()
 
 @app.route('/restart')
 def restart():
     try:
         shutdown_server()
+        status.set("restart")
         return status.get()
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         return "<pre>Restart Error: %s</pre>" % ''.join(format_exception(exc_type, exc_value, exc_traceback))
+
+@app.route('/exit')
+def exit():
+    try:
+        shutdown_server()
+        status.set("exit")
+        return status.get()
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        return "<pre>Exit Error: %s</pre>" % ''.join(format_exception(exc_type, exc_value, exc_traceback))
 
 @app.route('/refresh')
 def refresh():
@@ -151,7 +162,7 @@ def refresh():
         return 'Spoken updated'
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        return "<pre>Restart Error: %s</pre>" % ''.join(format_exception(exc_type, exc_value, exc_traceback))
+        return "<pre>Refresh Error: %s</pre>" % ''.join(format_exception(exc_type, exc_value, exc_traceback))
 
 
 # ******************************************************************************
@@ -179,12 +190,22 @@ rest_thread.start()
 # Prep the bridge
 #
 status.set("Initializing bridge...")
-bridge = bridge(config,logger)
+try:
+    bridge = bridge(config,logger)
+except:
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    err_str = ''.join(format_exception(exc_type, exc_value, exc_traceback))
+    status.set("Error initializing bridge: %s" % (err_str))
 #
 # Create ISY Connection
 #
 status.set("Initializing ISY...")
-isy = isy(config,logger,status,bridge)
+try:
+    isy = isy(config,logger,status,bridge)
+except:
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    err_str = ''.join(format_exception(exc_type, exc_value, exc_traceback))
+    status.set("Error initializing ISY: %s" % (err_str))
 #
 # Hang around until told to quit.
 #
@@ -192,22 +213,24 @@ status.set("Initialization complete.")
 status.set(False)
 # Don't give control to flask, since that causes cntl-C to be ignored...
 iprog = re.compile("isy: .+$")
-while True:
-    if status.get() is False:
-        time.sleep(1)
-    elif iprog.match(status.get()):
-        # ISY is busy updating...
-        time.sleep(1)
+try:
+    while True:
+        if status.get() is False:
+            time.sleep(1)
+        elif iprog.match(status.get()):
+            # ISY is busy updating...
+            time.sleep(1)
+        else:
+            break
+    if status.get() == "restart":
+        args = [sys.executable] + [sys.argv[0]]
+        status.set("Restarting: %s" % (args))
+        subprocess.call(args)
+    elif status.get() == "exit":
+        status.set("Exiting...")
     else:
-        break
-
-if status.get() == "restart":
-    args = [sys.executable] + [sys.argv[0]]
-    status.set("Restarting: %s" % (args))
-    subprocess.call(args)
-elif status.get() == "exit":
-    status.set("Exiting...")
-else:
-    print "Uknown Status " + status.get() + " Exiting.."
-
-
+        print "Uknown Status " + status.get() + " Exiting.."
+except KeyboardInterrupt:
+    print "Exiting from interrupt"
+except:
+    raise

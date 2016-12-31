@@ -61,3 +61,12 @@ http://your_pi_ip_address
 
 ./install_ihb.sh
 
+
+
+2016-12-27 18:30:55,228:IHAB:INFO: bridge:set_device_state '64'={'on': 'true', 'bri': '255'} 
+2016-12-27 18:31:08,131:IHAB:INFO: bridge:set_device_state '64'={'on': 'true', 'bri': '102'} 
+2016-12-27 18:31:36,735:IHAB:INFO: bridge:set_device_state '64'={'on': 'true', 'bri': '41'} 
+2016-12-27 18:32:14,337:IHAB:INFO: bridge:set_device_state '64'={'on': 'true', 'bri': '16'} 
+2016-12-27 18:32:38,718:IHAB:INFO: bridge:set_device_state '64'={'on': 'true', 'bri': '6'} 
+2016-12-27 18:33:00,595:IHAB:INFO: bridge:set_device_state '64'={'on': 'true', 'bri': '2'} 
+2016-12-27 18:33:22,287:IHAB:INFO: bridge:set_device_state '64'={'on': 'true', 'bri': '1'} 
