@@ -23,10 +23,10 @@ class bridge():
         (bstat,info) = self.connection.request('', type='post', body=data)
         if bstat:
             info = json.loads(info)
-            print info[0]
+            #print info[0]
             self.username = info[0]["success"]["username"]
         # TODO: else should throw error
-        self.logger.error("bridge: username=%s",self.username)
+        self.logger.info("bridge: username=%s",self.username)
         
     def get_devices(self):
         (bstat,devices) = self.connection.request('/devices')

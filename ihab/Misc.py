@@ -39,6 +39,12 @@ def load_config ():
         # TODO: This is the REST interface, should be configurable?
         'port' : port,
     }
+    # Check use_rest
+    if 'use_rest' in config:
+        if not ( config['use_rest'] is False or config['use_rest'] is True ):
+            print "ERROR: use_rest must be true or false, not " + str(config['use_rest'])
+    else:
+        config['use_rest'] = True
     # TODO: Check all isy and bridge params are defined.
     if 'isy' in config:
         if not 'host' in config['isy']:

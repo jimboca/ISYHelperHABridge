@@ -77,6 +77,8 @@ def top():
         out.append("<li><A HREF='/log'>View Log</A><br>")
         out.append("<li><A HREF='/restart'>Restart IHAB</A><br>")
         out.append("<li><A HREF='/exit'>Exit IHAB</A><br>")
+        out.append("<li><A HREF='/debug/on'>Debug REST On</A><br>")
+        out.append("<li><A HREF='/debug/off'>Debug REST Off</A><br>")
         out.append("<li><A HREF='/refresh'>Refresh ISY Devices</A><br>")
         out.append("</ul>")
         if status.get() is False:
@@ -131,6 +133,17 @@ def shutdown_server():
     if func is None:
         raise RuntimeError('Not running with the Werkzeug Server')
     func()
+
+@app.route('/debug/<val>')
+def debug(val):
+    if val == 'on':
+        ret = "REST:debug: True"
+        app.debug = True
+    else:
+        ret = "REST:debug: False"
+        app.debug = False
+    app.logger.info(ret)
+    return ret, 200
 
 @app.route('/restart')
 def restart():

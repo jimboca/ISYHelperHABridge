@@ -117,8 +117,12 @@ class isy_node_handler():
         self.main    = main
         self.scene   = scene
         self.map_id  = str("isy:%s" % (self.main._id))
-        main.status.subscribe('changed', self.get_all_changed)
         self.parent.logger.info('isy:node:.__init__:  name=%s node=%s scene=%s' % (self.name, self.main, self.scene))
+        # Subscribe to changes, if main is not a scene.
+        # This is because PyISY notification of scene on/off doesn't work properly,
+        # it notifies if anything on the kpl controlling that scene changes?
+        if type(self.main).__name__ != "Group":
+            main.status.subscribe('changed', self.get_all_changed)
         # ISY URL's
         self.isy_url = "%s/%s/cmd" % (self.parent.isy_url,quote(self.main._id))
         self.isy_on  = "%s/DON" % (self.isy_url)
@@ -137,7 +141,9 @@ class isy_node_handler():
         self.ihb_off = "%s/off" % (self.ihb_url)
         self.ihb_bri = "%s/on/{}" % (self.ihb_url)
         # TODO: Reset f_* functions if controlling thru ihab
-        if not self.scene is False:
+        if self.scene is not False or self.parent.config['use_rest'] is not True:
+            self.f_on  = self.ihb_on
+            self.f_off = self.ihb_off
             self.f_bri = self.ihb_bri
             self.add_or_update()
         # Set my on/off/bri status.
@@ -193,10 +199,18 @@ class isy_node_handler():
                 
     def set_bri(self,value):
         value = int(value)
-        self.parent.logger.info('isy:set_bri: %s on val=%d' % (self.name, value))
+        self.parent.logger.info('isy:set_bri: %s on val=%d main-type=%s scene=%s' % (self.name, value, type(self.main).__name__, self.scene))
         # Just controlling a device/scene?
         if self.scene is False:
-            ret = self._set_bri(self.main,value)
+            if type(self.main).__name__ == "Group":
+                # The main is a scene, so set all it's members
+                ret = True
+                for mem in self.main.members:
+                    if not self._set_bri(self.main.parent[mem],value):
+                        ret = False
+            else:
+                # The main is not a controller of a scene (Group), so just control the main.
+                ret = self._set_bri(self.main,value)
         else:
             # Controlling all responders in the scene.
             ret = True
@@ -209,6 +223,7 @@ class isy_node_handler():
 
     def _set_bri(self,device,value):
         # Only set directly on the node when it's dimmable and value is not 0
+        self.parent.logger.info('isy:set_bri: %s on val=%d' % (self.name, value))
         if device.dimmable and value > 0:
             # val=bri does not work?
             # TODO: If the device is not already on, then turn the scene on, then change the brigthness
