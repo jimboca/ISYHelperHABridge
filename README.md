@@ -46,7 +46,7 @@ an activity for every channel I watch.
 
 # ISY Spoken Property
 
-For an ISY device or scene to be enabled and csent to the ha-bridge you select
+For an ISY device or scene to be enabled and sent to the ha-bridge you select
 the object in the ISY Admin Console, right click and select 'Notes'.  In the
 notes there is a line to enter the Spoken property.
 
