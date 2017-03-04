@@ -81,7 +81,7 @@ class bridge():
         # Update cdev with params in udev
         i = 0
         for item in udev:
-            if cdev[item] != udev[item]:
+            if item in cdev and cdev[item] != udev[item]:
                 self.logger.info("bridge:update: %s '%s'->'%s'",item,cdev[item],udev[item])
                 cdev[item] = udev[item]
                 i += 1

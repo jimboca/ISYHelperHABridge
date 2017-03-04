@@ -38,6 +38,7 @@ class isy():
         self.devices = []
         for child in self.isy.nodes.allLowerNodes:
             #print child
+            self.logger.debug(child)
             if child[0] is 'node' or child[0] is 'group':
                 #self.logger.info(child)
                 main = self.isy.nodes[child[2]]
@@ -168,12 +169,19 @@ class isy_node_handler():
 
     def get_all(self):
         self.parent.logger.info('isy:get_all:  %s status=%s' % (self.name, str(self.main.status)))
-        # node.status will be 0-255
-        self.bri = self.main.status
-        if int(self.main.status) == 0:
+        if self.main.status is True:
+            self.bri = 0
+            self.on  = "true"
+        elif self.main.status is False:
+            self.bri = 0
             self.on  = "false"
         else:
-            self.on  = "true"
+            # node.status will be 0-255
+            self.bri = self.main.status
+            if int(self.main.status) == 0:
+                self.on  = "false"
+            else:
+                self.on  = "true"
         self.parent.logger.info('isy:get_all:  %s on=%s bri=%s' % (self.name, self.on, str(self.bri)))
         self.parent.bridge.set_device_state(self.bid,self.on,str(self.bri))
                 
