@@ -169,7 +169,12 @@ class isy_node_handler():
 
     def get_all(self):
         self.parent.logger.info('isy:get_all:  %s status=%s' % (self.name, str(self.main.status)))
-        if self.main.status is True:
+        # Some devices don't have status, like polyglot?
+        if self.main.status is None:
+            self.parent.logger.info('isy:get_all:  %s No device status available' % (self.name))
+            self.on = "false"
+            self.bri = 0
+        elif self.main.status is True:
             self.bri = 0
             self.on  = "true"
         elif self.main.status is False:
